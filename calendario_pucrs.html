@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calendário de Atividades PUCRS 2026</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Arial,sans-serif;background:#f4f6fb;color:#1a1a2e;min-height:100vh}
+  .wrap{max-width:960px;margin:0 auto;padding:1.25rem}
+  .header{background:#003DA5;color:#fff;border-radius:10px;padding:1rem 1.5rem;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between}
+  .header h1{font-size:16px;font-weight:700;letter-spacing:.02em}
+  .header .sub{font-size:12px;opacity:.75;margin-top:2px}
+  .nav{display:flex;align-items:center;gap:10px}
+  .nav button{background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center}
+  .nav button:hover{background:rgba(255,255,255,.3)}
+  .nav span{font-size:15px;font-weight:600;min-width:160px;text-align:center}
+  .cal-card{background:#fff;border-radius:10px;padding:1rem;margin-bottom:1rem;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+  .cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:3px}
+  .cal-wd{text-align:center;font-size:11px;font-weight:700;color:#888;padding:4px 0;text-transform:uppercase;letter-spacing:.04em}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+  .cal-day{min-height:64px;border-radius:7px;padding:5px 6px;background:#f8f9fc;cursor:pointer;border:1.5px solid transparent;transition:border-color .15s,background .15s;position:relative}
+  .cal-day:hover{border-color:#003DA5;background:#eef3fb}
+  .cal-day.empty{background:transparent;cursor:default;border:none}
+  .cal-day.has-ev{background:#e8f0fe}
+  .cal-day.selected{border-color:#003DA5;background:#dce8ff}
+  .cal-day.today{border-color:#f39c12}
+  .cal-num{font-size:12px;font-weight:700;color:#444;margin-bottom:3px}
+  .cal-day.has-ev .cal-num{color:#003DA5}
+  .cal-ev-preview{font-size:10px;line-height:1.3;color:#185FA5;font-weight:500;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .cal-count-badge{display:inline-block;background:#003DA5;color:#fff;font-size:9px;font-weight:700;border-radius:10px;padding:1px 5px;margin-top:2px}
+  .list-card{background:#fff;border-radius:10px;padding:1rem;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+  .list-title{font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.75rem}
+  .ev-item{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid #f0f0f0;align-items:flex-start}
+  .ev-item:last-child{border-bottom:none}
+  .ev-date-col{min-width:44px;text-align:center;background:#f0f4ff;border-radius:7px;padding:5px 4px}
+  .ev-day{font-size:18px;font-weight:700;color:#003DA5;line-height:1}
+  .ev-wday{font-size:10px;color:#888;margin-top:1px}
+  .ev-body{flex:1}
+  .ev-name{font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:3px}
+  .ev-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+  .tag{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600}
+  .tag-inst{background:#e8f0fe;color:#0C447C}
+  .tag-unid{background:#e8f5e9;color:#1B5E20}
+  .tag-min{background:#fff3e0;color:#E65100}
+  .tag-int{background:#e8f0fe;color:#0C447C}
+  .tag-ext{background:#e8f5e9;color:#1B5E20}
+  .empty-state{text-align:center;padding:2rem;color:#aaa;font-size:13px}
+  .loading{text-align:center;padding:2rem;color:#888;font-size:13px}
+  .error-msg{background:#fff3e0;border:1px solid #ffcc80;border-radius:8px;padding:.75rem 1rem;font-size:12px;color:#E65100;margin-bottom:1rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div>
+      <div class="header h1">Calendário de Atividades — PUCRS 2026</div>
+      <div class="sub">Equipe de Relacionamento com Escolas</div>
+    </div>
+    <div class="nav">
+      <button onclick="prevMonth()">&#8249;</button>
+      <span id="calTitle">Carregando...</span>
+      <button onclick="nextMonth()">&#8250;</button>
+    </div>
+  </div>
+
+  <div id="errorMsg" class="error-msg" style="display:none"></div>
+
+  <div class="cal-card">
+    <div class="cal-weekdays">
+      <div class="cal-wd">Dom</div><div class="cal-wd">Seg</div><div class="cal-wd">Ter</div>
+      <div class="cal-wd">Qua</div><div class="cal-wd">Qui</div><div class="cal-wd">Sex</div>
+      <div class="cal-wd">Sáb</div>
+    </div>
+    <div class="cal-grid" id="calGrid"><div class="loading">Carregando dados da planilha...</div></div>
+  </div>
+
+  <div class="list-card">
+    <div class="list-title" id="listTitle">Todas as atividades do mês</div>
+    <div id="eventList"><div class="loading">...</div></div>
+  </div>
+</div>
+
+<script>
+const SHEET_ID = '1gZA5Gy8nb6DE8hDphKkClYdq3bfp-HZwKXdfASVpWMY';
+const SHEET_NAME = 'Registro de Atividades';
+const URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
+
+let allData = [];
+let calYear = 2026;
+let calMonth = 3; // April default (0-indexed)
+let selectedDay = null;
+
+const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const WDAYS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+async function loadData() {
+  try {
+    const res = await fetch(URL);
+    const text = await res.text();
+    const json = JSON.parse(text.substring(47).slice(0, -2));
+    const rows = json.table.rows;
+    const cols = json.table.cols;
+
+    // Find column indices by label
+    const idx = {};
+    cols.forEach((c, i) => {
+      const l = (c.label || '').trim().toUpperCase();
+      if (l === 'DATA') idx.data = i;
+      if (l === 'COLÉGIO/INSTITUIÇÃO' || l === 'COLEGIO/INSTITUICAO' || l.includes('INSTITUI')) idx.inst = i;
+      if (l === 'NOME DA ATIVIDADE') idx.nome = i;
+      if (l.includes('UNIDADE') || l === 'ESCOLA/UNIDADE') idx.unid = i;
+      if (l === 'MINISTRANTE') idx.min = i;
+      if (l === 'HORISTA') idx.horista = i;
+      if (l === 'EXTERNO OU INTERNO') idx.extint = i;
+      if (l === 'EIXO') idx.eixo = i;
+    });
+
+    allData = [];
+    rows.forEach(r => {
+      if (!r.c || !r.c[idx.data]) return;
+      const dateCell = r.c[idx.data];
+      if (!dateCell || !dateCell.v) return;
+
+      let date = null;
+      // Google Sheets date comes as "Date(year,month,day)" 0-indexed month
+      if (typeof dateCell.v === 'string' && dateCell.v.startsWith('Date(')) {
+        const parts = dateCell.v.replace('Date(','').replace(')','').split(',').map(Number);
+        date = new Date(parts[0], parts[1], parts[2]);
+      } else if (dateCell.f) {
+        // Try parsing formatted string like "27 de jan. de 2026"
+        const months_map = {jan:0,fev:1,'mar':2,abr:3,mai:4,jun:5,jul:6,ago:7,set:8,out:9,nov:10,dez:11};
+        const m = dateCell.f.match(/(\d+)\s+de\s+(\w+)/i);
+        if (m) {
+          const mo = months_map[m[2].toLowerCase().substring(0,3)];
+          if (mo !== undefined) date = new Date(2026, mo, parseInt(m[1]));
+        }
+      }
+      if (!date || isNaN(date)) return;
+
+      const get = (i) => (i !== undefined && r.c[i] && r.c[i].v) ? String(r.c[i].v).trim() : '';
+      const horist = get(idx.horista);
+      const extint = get(idx.extint) || (horist === 'Sim' ? 'Externo' : 'Interno');
+
+      allData.push({
+        date,
+        day: date.getDate(),
+        month: date.getMonth(),
+        year: date.getFullYear(),
+        inst: get(idx.inst),
+        nome: get(idx.nome),
+        unid: get(idx.unid),
+        min: get(idx.min),
+        extint,
+        eixo: get(idx.eixo),
+      });
+    });
+
+    // Set initial month to first month with data
+    if (allData.length > 0) {
+      const sorted = [...allData].sort((a,b)=>a.date-b.date);
+      calMonth = sorted[0].month;
+      calYear = sorted[0].year;
+    }
+
+    render();
+  } catch (e) {
+    document.getElementById('errorMsg').style.display = 'block';
+    document.getElementById('errorMsg').textContent =
+      'Não foi possível carregar os dados da planilha. Verifique se ela está com acesso público ("qualquer pessoa com o link pode visualizar"). Erro: ' + e.message;
+    document.getElementById('calGrid').innerHTML = '';
+    document.getElementById('eventList').innerHTML = '';
+  }
+}
+
+function getMonthData(year, month) {
+  return allData.filter(r => r.year === year && r.month === month);
+}
+
+function render() {
+  document.getElementById('calTitle').textContent = `${MONTHS[calMonth]} ${calYear}`;
+  const data = getMonthData(calYear, calMonth);
+
+  // Build day map
+  const byDay = {};
+  data.forEach(r => {
+    if (!byDay[r.day]) byDay[r.day] = [];
+    byDay[r.day].push(r);
+  });
+
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const today = new Date();
+
+  let html = '';
+  for (let i = 0; i < firstDay; i++) html += `<div class="cal-day empty"></div>`;
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const evs = byDay[d] || [];
+    const isToday = today.getDate() === d && today.getMonth() === calMonth && today.getFullYear() === calYear;
+    const isSel = selectedDay === d;
+    let cls = 'cal-day';
+    if (evs.length) cls += ' has-ev';
+    if (isToday) cls += ' today';
+    if (isSel) cls += ' selected';
+
+    let inner = `<div class="cal-num">${d}</div>`;
+    if (evs.length === 1) {
+      inner += `<div class="cal-ev-preview">${evs[0].nome || evs[0].inst}</div>`;
+    } else if (evs.length > 1) {
+      inner += `<div class="cal-ev-preview">${evs[0].nome || evs[0].inst}</div>`;
+      inner += `<span class="cal-count-badge">+${evs.length - 1}</span>`;
+    }
+    html += `<div class="${cls}" onclick="selectDay(${d})">${inner}</div>`;
+  }
+
+  document.getElementById('calGrid').innerHTML = html;
+  renderList(selectedDay ? (byDay[selectedDay] || []) : data, selectedDay);
+}
+
+function renderList(evs, day) {
+  const title = day
+    ? `${evs.length} atividade${evs.length !== 1 ? 's' : ''} — ${day} de ${MONTHS[calMonth]}`
+    : `${evs.length} atividade${evs.length !== 1 ? 's' : ''} em ${MONTHS[calMonth]}`;
+  document.getElementById('listTitle').textContent = title;
+
+  if (!evs.length) {
+    document.getElementById('eventList').innerHTML = `<div class="empty-state">Nenhuma atividade neste período.</div>`;
+    return;
+  }
+
+  const sorted = [...evs].sort((a,b) => a.day - b.day);
+  document.getElementById('eventList').innerHTML = sorted.map(r => `
+    <div class="ev-item">
+      <div class="ev-date-col">
+        <div class="ev-day">${r.day}</div>
+        <div class="ev-wday">${WDAYS[r.date.getDay()]}</div>
+      </div>
+      <div class="ev-body">
+        <div class="ev-name">${r.nome || '(sem nome)'}</div>
+        <div class="ev-tags">
+          ${r.inst ? `<span class="tag tag-inst">${r.inst}</span>` : ''}
+          ${r.unid ? `<span class="tag tag-unid">${r.unid}</span>` : ''}
+          ${r.min ? `<span class="tag tag-min">${r.min}</span>` : ''}
+          <span class="tag ${r.extint === 'Externo' ? 'tag-ext' : 'tag-int'}">${r.extint}</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function selectDay(d) {
+  selectedDay = selectedDay === d ? null : d;
+  render();
+}
+
+function prevMonth() {
+  selectedDay = null;
+  calMonth--;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  render();
+}
+
+function nextMonth() {
+  selectedDay = null;
+  calMonth++;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  render();
+}
+
+loadData();
+</script>
+</body>
+</html>
