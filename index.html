@@ -82,13 +82,14 @@
 </div>
 
 <script>
-const SHEET_ID = '1gZA5Gy8nb6DE8hDphKkClYdq3bfp-HZwKXdfASVpWMY';
+const SHEET_ID = '1xpOdx1MfIJnC661EBiPmupjK8iPuGvVPmFX1RQk3qd8';
 const SHEET_NAME = 'Registro de Atividades';
 const URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
 
 let allData = [];
-let calYear = 2026;
-let calMonth = 3; // April default (0-indexed)
+const _hoje = new Date();
+let calYear = _hoje.getFullYear();
+let calMonth = _hoje.getMonth(); // mês vigente automático
 let selectedDay = null;
 
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -156,9 +157,11 @@ async function loadData() {
       });
     });
 
-    // Set initial month to first month with data
-    if (allData.length > 0) {
-      const sorted = [...allData].sort((a,b)=>a.date-b.date);
+    // Mantém o mês vigente; se não houver dados no mês atual,
+    // navega para o mês mais recente com dados
+    const temDadosNoMesAtual = allData.some(r => r.month === calMonth && r.year === calYear);
+    if (!temDadosNoMesAtual && allData.length > 0) {
+      const sorted = [...allData].sort((a,b)=>b.date-a.date);
       calMonth = sorted[0].month;
       calYear = sorted[0].year;
     }
